@@ -25,3 +25,10 @@ curl -s -X POST http://localhost:8080/api/query/ \
   -H 'content-type: application/json' \
   -d '{"question":"What is LlamaIndex used for?", "top_k": 3}'
 
+  docker compose exec ollama sh -lc \
+  'ollama serve & sleep 2; \
+   ollama create zephyr-7b-beta -f /models/zephyr-7b-beta/Modelfile; \
+   kill %1 || true'
+
+   curl -s http://localhost:11434/api/tags | jq .
+
