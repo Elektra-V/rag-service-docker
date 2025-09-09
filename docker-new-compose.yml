@@ -1,34 +1,8 @@
 services:
-  # 0) Download GGUF to ./models (skips if file exists)
-  model-fetch:
-    image: alpine:3.20
-    working_dir: /work
-    env_file: .env
-    command: >
-      sh -lc "
-        set -e;
-        mkdir -p ${CUSTOM_MODEL_DIR};
-        cd ${CUSTOM_MODEL_DIR};
-        if [ ! -f ${CUSTOM_GGUF_FILE} ]; then
-          apk add --no-cache curl;
-          echo 'Downloading ${CUSTOM_GGUF_URL} -> ${CUSTOM_GGUF_FILE}';
-          curl -fL ${CUSTOM_GGUF_URL} -o ${CUSTOM_GGUF_FILE};
-        else
-          echo 'GGUF already present, skipping download.';
-        fi;
-        ls -lh .
-      "
-    volumes:
-      - ./:/work
-    restart: "no"
-
-  # 1) Create local model inside Ollama using your Modelfile
+  # 1) Register local Zephyr model inside Ollama (reads your Modelfile)
   model-create:
     image: ollama/ollama:0.3.14
     env_file: .env
-    depends_on:
-      model-fetch:
-        condition: service_completed_successfully
     entrypoint: ["sh","-lc"]
     command: >
       ollama serve & sleep 2;
@@ -39,10 +13,11 @@ services:
       - OLLAMA_NO_GPU=1
     volumes:
       - ollama_models:/root/.ollama
-      - ./models:/models
+      - ./models:/models:ro
     restart: "no"
 
-  # 2) Pull the embedding model from the registry (internet required)
+  # 2) (Optional) Pre-pull embedding model from registry
+  #    If your cluster has no internet, comment this out
   ollama-prepull-embed:
     image: ollama/ollama:0.3.14
     env_file: .env
@@ -52,7 +27,7 @@ services:
     entrypoint: ["sh","-lc"]
     command: >
       ollama serve & sleep 2;
-      ollama pull ${OLLAMA_EMBED};
+      ollama pull ${OLLAMA_EMBED} || true;
       kill %1 || true
     environment:
       - OLLAMA_MODELS=/root/.ollama
@@ -98,7 +73,7 @@ services:
       timeout: 5s
       retries: 30
 
-  # 5) Your FastAPI service
+  # 5) FastAPI service
   api:
     build:
       context: ./api
