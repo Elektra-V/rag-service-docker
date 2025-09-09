@@ -12,3 +12,10 @@ curl http://localhost:11434/            # Ollama welcome text
 curl http://localhost:11434/api/tags    # should list your models
 curl http://localhost:6333/readyz       # "OK"
 curl http://localhost:8000/health/ready # API ready (after both are healthy)
+
+curl -s http://localhost:8080/health/ready
+curl "http://localhost:8080/api/kb/load?query=llamaindex&max_results=1"
+curl -s -X POST http://localhost:8080/api/query/ \
+  -H 'content-type: application/json' \
+  -d '{"question":"What is LlamaIndex used for?", "top_k": 3}'
+
