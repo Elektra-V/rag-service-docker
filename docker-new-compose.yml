@@ -1,28 +1,28 @@
 services:
-  # 0) Download GGUF into ./models (skips if file exists)
+  # 0) Download GGUF to ./models (skips if file exists)
   model-fetch:
     image: alpine:3.20
     working_dir: /work
     env_file: .env
     command: >
-      sh -lc '
+      sh -lc "
         set -e;
-        mkdir -p "${CUSTOM_MODEL_DIR}";
-        cd "${CUSTOM_MODEL_DIR}";
-        if [ ! -f "${CUSTOM_GGUF_FILE}" ]; then
+        mkdir -p ${CUSTOM_MODEL_DIR};
+        cd ${CUSTOM_MODEL_DIR};
+        if [ ! -f ${CUSTOM_GGUF_FILE} ]; then
           apk add --no-cache curl;
-          echo "Downloading ${CUSTOM_GGUF_URL} -> ${CUSTOM_GGUF_FILE}";
-          curl -fL "${CUSTOM_GGUF_URL}" -o "${CUSTOM_GGUF_FILE}";
+          echo 'Downloading ${CUSTOM_GGUF_URL} -> ${CUSTOM_GGUF_FILE}';
+          curl -fL ${CUSTOM_GGUF_URL} -o ${CUSTOM_GGUF_FILE};
         else
-          echo "GGUF already present, skipping download.";
-        fi
+          echo 'GGUF already present, skipping download.';
+        fi;
         ls -lh .
-      '
+      "
     volumes:
       - ./:/work
     restart: "no"
 
-  # 1) Register local model with Ollama using your Modelfile
+  # 1) Create local model inside Ollama using your Modelfile
   model-create:
     image: ollama/ollama:0.3.14
     env_file: .env
@@ -31,9 +31,9 @@ services:
         condition: service_completed_successfully
     entrypoint: ["sh","-lc"]
     command: >
-      'ollama serve & sleep 2;
-       ollama create "${CUSTOM_MODEL_TAG}" -f "/models/${CUSTOM_MODEL_DIR#models/}/Modelfile";
-       kill %1 || true'
+      ollama serve & sleep 2;
+      ollama create ${CUSTOM_MODEL_TAG} -f ${CUSTOM_MODEL_DIR_IN_CONTAINER}/Modelfile;
+      kill %1 || true
     environment:
       - OLLAMA_MODELS=/root/.ollama
       - OLLAMA_NO_GPU=1
@@ -42,7 +42,7 @@ services:
       - ./models:/models
     restart: "no"
 
-  # 2) Pre-pull the embedding model from the registry
+  # 2) Pull the embedding model from the registry (internet required)
   ollama-prepull-embed:
     image: ollama/ollama:0.3.14
     env_file: .env
@@ -51,9 +51,9 @@ services:
         condition: service_completed_successfully
     entrypoint: ["sh","-lc"]
     command: >
-      'ollama serve & sleep 2;
-       ollama pull "${OLLAMA_EMBED}";
-       kill %1 || true'
+      ollama serve & sleep 2;
+      ollama pull ${OLLAMA_EMBED};
+      kill %1 || true
     environment:
       - OLLAMA_MODELS=/root/.ollama
       - OLLAMA_NO_GPU=1
