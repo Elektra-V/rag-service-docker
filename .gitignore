@@ -1,0 +1,66 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.log
+*.env
+.venv/
+env/
+venv/
+pip-wheel-metadata/
+*.egg-info/
+
+# --- VS Code / PyCharm / editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Docker ---
+# local named volumes
+volumes/
+docker-compose.override.yml
+*.pid
+
+# --- Ollama / Models ---
+# prevent huge models from going to git
+models/**/*.gguf
+models/**/*.bin
+models/**/*.safetensors
+models/**/*.pt
+models/**/*.ckpt
+# but keep Modelfiles
+!models/**/Modelfile
+
+# --- Qdrant data ---
+qdrant_data/
+qdrant_storage/
+.qdrant/
+
+# --- Logs ---
+*.log
+logs/
+*.out
+
+# --- System ---
+.DS_Store
+Thumbs.db
+
+# models & weights
+models/**/*.gguf
+models/**/*.bin
+models/**/*.safetensors
+!models/**/Modelfile
+
+# docker volumes / data
+qdrant_storage/
+.qdrant/
+ollama_models/
+volumes/
+
+# python cache
+__pycache__/
+*.pyc
