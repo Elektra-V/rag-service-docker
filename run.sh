@@ -15,6 +15,12 @@ curl http://localhost:8000/health/ready # API ready (after both are healthy)
 
 curl -s http://localhost:8080/health/ready
 curl "http://localhost:8080/api/kb/load?query=llamaindex&max_results=1"
+# ingest arXiv papers (by query)
+curl -s -X POST http://localhost:8080/api/kb/load_arxiv \
+  -H 'content-type: application/json' \
+  -d '{"query":"llamaindex", "max_results": 2}'
+
+# ask a question
 curl -s -X POST http://localhost:8080/api/query/ \
   -H 'content-type: application/json' \
   -d '{"question":"What is LlamaIndex used for?", "top_k": 3}'
