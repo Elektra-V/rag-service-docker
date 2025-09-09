@@ -1,66 +1,43 @@
 # --- Python ---
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.sqlite3
-*.db
-*.log
-*.env
+*.py[cod]
+*.egg-info/
+.env
 .venv/
 env/
 venv/
-pip-wheel-metadata/
-*.egg-info/
 
-# --- VS Code / PyCharm / editors ---
+# --- FastAPI / logs ---
+*.log
+logs/
+*.sqlite3
+*.db
+
+# --- Editors / OS ---
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
 *.swp
 *.swo
 
 # --- Docker ---
-# local named volumes
-volumes/
 docker-compose.override.yml
 *.pid
+volumes/
+qdrant_storage/
+ollama_models/
 
 # --- Ollama / Models ---
-# prevent huge models from going to git
+# block big files
 models/**/*.gguf
 models/**/*.bin
 models/**/*.safetensors
 models/**/*.pt
 models/**/*.ckpt
+
 # but keep Modelfiles
 !models/**/Modelfile
 
-# --- Qdrant data ---
-qdrant_data/
-qdrant_storage/
-.qdrant/
-
-# --- Logs ---
-*.log
-logs/
-*.out
-
-# --- System ---
-.DS_Store
-Thumbs.db
-
-# models & weights
-models/**/*.gguf
-models/**/*.bin
-models/**/*.safetensors
-!models/**/Modelfile
-
-# docker volumes / data
-qdrant_storage/
-.qdrant/
-ollama_models/
-volumes/
-
-# python cache
-__pycache__/
-*.pyc
+# --- Local data ---
+data/
