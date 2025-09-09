@@ -19,7 +19,9 @@ services:
     ports: ["11434:11434"]
 
   api:
-    build: ./api
+    build:
+      context: ./api
+      dockerfile: Dockerfile
     image: local/rag-api:0.1.0
     restart: unless-stopped
     env_file: .env
@@ -27,6 +29,8 @@ services:
       qdrant: { condition: service_started }
       ollama: { condition: service_started }
     ports: ["8080:8000"]
+    volumes:
+      - ./data:/data
 
 volumes:
   ollama_models:

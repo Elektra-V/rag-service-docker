@@ -7,6 +7,7 @@ import httpx
 # Import routers after stdlib/third-party imports
 from app.controllers.kb_controller import router as kb_router
 from app.controllers.query_controller import router as query_router
+from app.controllers.kb_controller import router as kb_router
 
 
 # --- settings ---
