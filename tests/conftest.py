@@ -1,6 +1,7 @@
-
+# tests/conftest.py
 import sys, types, pytest
 
+# ---- Dummies ----
 class DummyDoc:
     def __init__(self, text, metadata=None):
         self.text = text
@@ -27,8 +28,6 @@ class DummyQueryEngine:
         return DummyResult(self._reply_text, self._sources)
 
 class DummyIndex:
-    def __init__(self):
-        pass
     @classmethod
     def from_documents(cls, docs, storage_context=None, embed_model=None):
         idx = cls()
@@ -37,7 +36,7 @@ class DummyIndex:
     def as_query_engine(self, llm=None, similarity_top_k=4, response_mode="compact"):
         sources = [
             DummySourceNode(text="source text 1", score=0.9, metadata={"a": 1}),
-            DummySourceNode(text="source text 2 " * 40, score=0.5, metadata={"b": 2}),
+            DummySourceNode(text=("source text 2 " * 40), score=0.5, metadata={"b": 2}),
         ]
         return DummyQueryEngine("dummy answer", sources)
 
@@ -48,42 +47,34 @@ class DummyStorageContext:
         inst.vector_store = vector_store
         return inst
 
-@pytest.fixture(autouse=True)
-def patch_external_libs(monkeypatch):
-    # llama_index core
-    core_mod = types.SimpleNamespace(
-        VectorStoreIndex=DummyIndex,
-        StorageContext=DummyStorageContext,
-        Document=DummyDoc,
-    )
-    sys.modules["llama_index.core"] = core_mod
+class DummyQdrantClient:
+    def __init__(self, url=None, host=None, port=None, **kwargs):
+        # accept multiple ctor styles (url=..., or host+port)
+        self.url = url or (f"http://{host}:{port}" if host and port else "http://qdrant:6333")
+        self._exists = True
+    def collection_exists(self, name):
+        return self._exists
+    def delete_collection(self, name):
+        self._exists = False
 
-    # llama_index ollama + embeddings
-    sys.modules["llama_index.llms.ollama"] = types.SimpleNamespace(
-        Ollama=lambda **kwargs: object()
-    )
-    sys.modules["llama_index.embeddings.ollama"] = types.SimpleNamespace(
-        OllamaEmbedding=lambda **kwargs: object()
-    )
+# ---- Register stubs *at import time* ----
+sys.modules["llama_index.core"] = types.SimpleNamespace(
+    VectorStoreIndex=DummyIndex,
+    StorageContext=DummyStorageContext,
+    Document=DummyDoc,
+)
+sys.modules["llama_index.llms.ollama"] = types.SimpleNamespace(
+    Ollama=lambda **kwargs: object()
+)
+sys.modules["llama_index.embeddings.ollama"] = types.SimpleNamespace(
+    OllamaEmbedding=lambda **kwargs: object()
+)
+sys.modules["llama_index.vector_stores.qdrant"] = types.SimpleNamespace(
+    QdrantVectorStore=lambda client, collection_name: object()
+)
+sys.modules["qdrant_client"] = types.SimpleNamespace(QdrantClient=DummyQdrantClient)
 
-    # qdrant vector store + client
-    sys.modules["llama_index.vector_stores.qdrant"] = types.SimpleNamespace(
-        QdrantVectorStore=lambda client, collection_name: object()
-    )
-
-    class DummyQdrantClient:
-        def __init__(self, url):
-            self.url = url
-            self._exists = True
-        def collection_exists(self, name):
-            return self._exists
-        def delete_collection(self, name):
-            self._exists = False
-
-    sys.modules["qdrant_client"] = types.SimpleNamespace(QdrantClient=DummyQdrantClient)
-
-    yield
-
+# ---- Keep arXiv as a fixture (optional) ----
 @pytest.fixture
 def dummy_arxiv(monkeypatch):
     class DummyArxivResult:
