@@ -49,9 +49,9 @@ class DummyStorageContext:
 
 class DummyQdrantClient:
     def __init__(self, url=None, host=None, port=None, **kwargs):
-        # accept multiple ctor styles (url=..., or host+port)
         self.url = url or (f"http://{host}:{port}" if host and port else "http://qdrant:6333")
         self._exists = True
+        
     def collection_exists(self, name):
         return self._exists
     def delete_collection(self, name):

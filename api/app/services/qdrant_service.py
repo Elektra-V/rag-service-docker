@@ -7,11 +7,15 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://qdrant:6333")
 COLL = os.getenv("QDRANT_COLLECTION", "docs")
 
 class QdrantService:
-    def __init__(self, client=None, store=None, url: str | None = None, collection: str | None = None):
+    def __init__(self,
+                 client=None,
+                 store=None,
+                 url: Optional[str] = None,
+                 collection: Optional[str] = None):
         self.url = url or QDRANT_URL
         self.collection = collection or COLL
-        self._client = client  # lazy
-        self._store = store    # lazy
+        self._client = client
+        self._store = store
 
     @property
     def client(self):
