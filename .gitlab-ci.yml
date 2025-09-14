@@ -59,31 +59,13 @@ integration:
 
 build-image:
   stage: build
-  image: quay.io/containers/buildah:stable
+  image: quay.io/podman/stable:latest
   tags: ["test-runner"]
   variables:
-    # Avoid user namespaces + overlay; run anywhere (slower but reliable)
-    BUILDAH_ISOLATION: chroot
     STORAGE_DRIVER: vfs
-    XDG_RUNTIME_DIR: /tmp/run
-    HOME: /home/build
-    DOCKER_CONFIG: /home/build/.docker   # for registry auth if needed
   before_script:
-    - set -euo pipefail
-    - mkdir -p "$XDG_RUNTIME_DIR" "$HOME" "$DOCKER_CONFIG"
-    # (Optional) loose policy if your registry has custom TLS or mirrors
-    - echo '{ "default": [{"type":"insecureAcceptAnything"}] }' >/etc/containers/policy.json
-    - buildah --debug info || true
-    - buildah version
-    # GitLab registry login with job token (no extra secrets)
-    - buildah login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - podman login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
   script:
-    # Build from ./api/Dockerfile; adjust path if different
-    - buildah bud --isolation chroot --storage-driver vfs --layers -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" ./api
-    - buildah push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
-    - |
-      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
-        buildah tag "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" "$CI_REGISTRY_IMAGE/api:latest"
-        buildah push "$CI_REGISTRY_IMAGE/api:latest"
-      fi
+    - podman build --storage-driver vfs -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" ./api
+    - podman push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
 
