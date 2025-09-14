@@ -59,26 +59,31 @@ integration:
 
 build-image:
   stage: build
-  image: quay.io/containers/buildah:latest
+  image: quay.io/containers/buildah:stable
   tags: ["test-runner"]
   variables:
-    # Make buildah work inside an unprivileged container
+    # Avoid user namespaces + overlay; run anywhere (slower but reliable)
     BUILDAH_ISOLATION: chroot
     STORAGE_DRIVER: vfs
-    # optional: speed up network name resolution in some corp nets
-    CONTAINERS_REGISTRIES_CONF: /etc/containers/registries.conf
+    XDG_RUNTIME_DIR: /tmp/run
+    HOME: /home/build
+    DOCKER_CONFIG: /home/build/.docker   # for registry auth if needed
   before_script:
+    - set -euo pipefail
+    - mkdir -p "$XDG_RUNTIME_DIR" "$HOME" "$DOCKER_CONFIG"
+    # (Optional) loose policy if your registry has custom TLS or mirrors
+    - echo '{ "default": [{"type":"insecureAcceptAnything"}] }' >/etc/containers/policy.json
+    - buildah --debug info || true
     - buildah version
-    # Login to GitLab Container Registry using the CI job token (no extra secrets)
+    # GitLab registry login with job token (no extra secrets)
     - buildah login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
   script:
-    # Build from ./api/Dockerfile and tag with commit SHA
-    - buildah bud --layers -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" ./api
-    # Push the image
+    # Build from ./api/Dockerfile; adjust path if different
+    - buildah bud --isolation chroot --storage-driver vfs --layers -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" ./api
     - buildah push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
-    # Also tag/push latest on main
     - |
       if [ "$CI_COMMIT_BRANCH" = "main" ]; then
         buildah tag "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" "$CI_REGISTRY_IMAGE/api:latest"
         buildah push "$CI_REGISTRY_IMAGE/api:latest"
       fi
+
