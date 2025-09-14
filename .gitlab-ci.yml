@@ -69,16 +69,27 @@ build-image:
     - podman build --storage-driver vfs -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" ./api
     - podman push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
   
-  build-image:
+build-image:
   stage: build
-  image: r.j3ss.co/img:latest
+  image: gcr.io/kaniko-project/executor:debug
   tags: ["test-runner"]
   variables:
-    HOME: /tmp/home
+    DOCKER_CONFIG: /kaniko/.docker
   before_script:
-    - mkdir -p /tmp/home
-    - img login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(printf "%s:%s" "gitlab-ci-token" "$CI_JOB_TOKEN" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    
+    # Debug network
+    - echo "Registry: $CI_REGISTRY"
+    - nslookup "$CI_REGISTRY" || true
+    
   script:
-    - img build -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" ./api
-    - img push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
+    - /kaniko/executor
+      --context ./api
+      --dockerfile ./api/Dockerfile
+      --destination "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
+      --cache=true
+      --insecure-registry="$CI_REGISTRY"
+      --skip-tls-verify-registry="$CI_REGISTRY"
+      --verbosity=debug
 
