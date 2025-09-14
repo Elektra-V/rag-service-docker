@@ -71,25 +71,20 @@ build-image:
   
 build-image:
   stage: build
-  image: gcr.io/kaniko-project/executor:debug
+  image: 
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
   tags: ["test-runner"]
   variables:
     DOCKER_CONFIG: /kaniko/.docker
   before_script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(printf "%s:%s" "gitlab-ci-token" "$CI_JOB_TOKEN" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
-    
-    # Debug network
-    - echo "Registry: $CI_REGISTRY"
-    - nslookup "$CI_REGISTRY" || true
-    
   script:
     - /kaniko/executor
       --context ./api
       --dockerfile ./api/Dockerfile
       --destination "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
       --cache=true
-      --insecure-registry="$CI_REGISTRY"
-      --skip-tls-verify-registry="$CI_REGISTRY"
-      --verbosity=debug
+      --verbosity=info
 
