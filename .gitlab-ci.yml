@@ -59,19 +59,23 @@ integration:
 
 build-image:
   stage: build
-  image: docker:24.0
-  services: [ docker:24.0-dind ]
-  tags: [ test-runner ]
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]      # important, we need a shell
+  tags:
+    - test-runner         # your runner tag
+  variables:
+    DOCKER_CONFIG: /kaniko/.docker
   before_script:
-    # Use built-in CI job token; no manual secrets
-    - echo "$CI_JOB_TOKEN" | docker login -u gitlab-ci-token --password-stdin "$CI_REGISTRY"
+    # Auth to GitLab Container Registry using the CI job token (no secrets needed)
+    - mkdir -p /kaniko/.docker
+    - printf '{"auths":{"%s":{"username":"gitlab-ci-token","password":"%s"}}}' "$CI_REGISTRY" "$CI_JOB_TOKEN" > /kaniko/.docker/config.json
   script:
-    - docker build -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" ./api
-    - docker push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
-    - |
-      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
-        docker tag "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" "$CI_REGISTRY_IMAGE/api:latest"
-        docker push "$CI_REGISTRY_IMAGE/api:latest"
-      fi
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - /kaniko/executor
+        --context "$CI_PROJECT_DIR/api"
+        --dockerfile "$CI_PROJECT_DIR/api/Dockerfile"
+        --destination "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
+        --destination "$CI_REGISTRY_IMAGE/api:latest"
+        --single-snapshot
+        --use-new-run
+        --compressed-caching=false
