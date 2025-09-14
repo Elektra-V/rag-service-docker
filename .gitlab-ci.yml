@@ -68,4 +68,17 @@ build-image:
   script:
     - podman build --storage-driver vfs -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" ./api
     - podman push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
+  
+  build-image:
+  stage: build
+  image: r.j3ss.co/img:latest
+  tags: ["test-runner"]
+  variables:
+    HOME: /tmp/home
+  before_script:
+    - mkdir -p /tmp/home
+    - img login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+  script:
+    - img build -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" ./api
+    - img push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
 
