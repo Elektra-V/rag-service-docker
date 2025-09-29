@@ -26,7 +26,7 @@ test:
     paths:
       - junit.xml
 
-integration:
+ integration:
   stage: integration
   image: python:3.11-slim
   services:
@@ -34,40 +34,55 @@ integration:
       alias: qdrant
     - name: ollama/ollama:0.3.14
       alias: ollama
-      command: ["serve"] 
+      command: ["serve"]
   variables:
     QDRANT_URL: "http://qdrant:6333"
     OLLAMA_URL: "http://ollama:11434"
     OLLAMA_NO_GPU: "1"
     PORT: "8080"
   before_script:
-    - python -V
+    - apt-get update && apt-get install -y --no-install-recommends curl
     - pip install --upgrade pip
     - pip install -r api/requirements.txt || true
     - pip install pytest httpx uvicorn
-    - cd api
   script:
     - |
+      set -euo pipefail
+      # run from the correct folder so "app.main" imports
+      cd api
+
       # start API (bind to 0.0.0.0:8080) in background
-      uvicorn app.main:app --host 0.0.0.0 --port 8080 &
+      python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 &
       APP_PID=$!
-      # wait for readiness (live first, then ready when deps are up)
+
+      # wait for liveness (server up)
       for i in $(seq 1 60); do
-        if curl -fsS http://localhost:8080/health/live >/dev/null; then break; fi
+        if curl -fsS http://localhost:8080/health/live >/dev/null 2>&1; then
+          echo "Liveness OK"
+          break
+        fi
+        if ! kill -0 $APP_PID 2>/dev/null; then
+          echo "API process exited early"; exit 1
+        fi
         sleep 1
       done
-      # optional: wait until ready (qdrant+ollama reachable), don’t fail early
-      for i in $(seq 1 60); do
-        if curl -fsS http://localhost:8080/healthz >/dev/null; then break; fi
+
+      # OPTIONAL: try readiness, but don't fail if deps are slow
+      for i in $(seq 1 120); do
+        if curl -fsS http://localhost:8080/healthz >/dev/null 2>&1; then
+          echo "Readiness OK"
+          break
+        fi
         sleep 2
-      done
-      # run your integration tests (they’ll hit localhost:8080 or services directly)
+      done || true
+
+      # run your integration tests (from repo root)
       cd ..
       pytest tests/integration -q
+
       kill $APP_PID || true
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"'
-  
 # ---------- build & push (Kaniko; NO Docker needed) ----------
 build_image:
   stage: build
