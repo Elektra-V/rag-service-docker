@@ -1,0 +1,68 @@
+stages: [review]
+
+# --- Global defaults for the smoke job ---
+variables:
+  PORT: "8080"                             # use 8000 if your container still listens there
+  QDRANT_URL: "http://qdrant:6333"
+  OLLAMA_URL: "http://ollama:11434"
+  OLLAMA_NO_GPU: "1"
+
+# This job runs the API from your built image, with Qdrant & Ollama as services.
+review_rag_service:
+  stage: review
+
+  # ⬇️ CHANGE THIS to your real image and a tag that exists (e.g., sha-abc1234)
+  image: REGISTRY_PATH_HERE:sha-XXXXXXX
+
+  services:
+    - name: qdrant/qdrant:v1.11.0
+      alias: qdrant
+    - name: ollama/ollama:0.3.14
+      alias: ollama
+      command: ["serve"]
+
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends curl
+    - python -V
+
+  script:
+    - |
+      # Start your API inside the job container
+      set -eu
+      echo "Starting API on :${PORT}"
+      # Prefer python -m to avoid PATH surprises
+      python -m uvicorn app.main:app --host 0.0.0.0 --port "${PORT}" &
+      APP_PID=$!
+
+      # Wait for liveness (doesn't require deps)
+      for i in $(seq 1 60); do
+        if curl -fsS "http://localhost:${PORT}/health/live" >/dev/null 2>&1; then
+          echo "Liveness OK"; break
+        fi
+        if ! kill -0 $APP_PID 2>/dev/null; then
+          echo "API process exited early"; exit 1
+        fi
+        sleep 1
+      done
+
+      # Try readiness (deps may be slow; don't fail the job on this)
+      for i in $(seq 1 120); do
+        if curl -fsS "http://localhost:${PORT}/healthz" >/dev/null 2>&1; then
+          echo "Readiness OK"; break
+        fi
+        sleep 2
+      done || true
+
+      # Optional tiny functional probe (tolerate failure if models aren’t warm)
+      curl -fsS -X POST "http://localhost:${PORT}/api/query" \
+        -H 'Content-Type: application/json' \
+        -d '{"q":"ping","top_k":1}' || true
+
+      kill $APP_PID || true
+
+  # Run on merge requests (you’ll later have your app repo open an MR here)
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+  # For the first manual run on default branch, uncomment this:
+  # when: on_success
