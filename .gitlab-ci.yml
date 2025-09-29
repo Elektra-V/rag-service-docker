@@ -26,7 +26,7 @@ test:
     paths:
       - junit.xml
 
- integration:
+integration:
   stage: integration
   image: python:3.11-slim
   services:
@@ -93,20 +93,31 @@ build_image:
     DOCKER_CONFIG: /kaniko/.docker
   before_script:
     - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(printf "%s:%s" "gitlab-ci-token" "$CI_JOB_TOKEN" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - |
+      cat > /kaniko/.docker/config.json <<EOF
+      {
+        "auths": {
+          "${CI_REGISTRY}": {
+            "auth": "$(printf "%s:%s" "gitlab-ci-token" "$CI_JOB_TOKEN" | base64 | tr -d '\n')"
+          }
+        }
+      }
+      EOF
   script:
     - |
-      set -euo pipefail
-      DESTS=( "--destination" "$IMAGE_NAME:$IMAGE_TAG" "--destination" "$IMAGE_NAME:$BRANCH_TAG" )
+      set -eu
+      echo "Pushing: ${IMAGE_NAME}:${IMAGE_TAG} and ${IMAGE_NAME}:${BRANCH_TAG}"
+      DESTS="--destination ${IMAGE_NAME}:${IMAGE_TAG} --destination ${IMAGE_NAME}:${BRANCH_TAG}"
       if [ "${CI_COMMIT_BRANCH:-}" = "main" ]; then
-        DESTS+=( "--destination" "$IMAGE_NAME:latest" )
+        DESTS="$DESTS --destination ${IMAGE_NAME}:latest"
+        echo "Also pushing :latest (main)"
       fi
       /kaniko/executor \
-        --context ./api \
-        --dockerfile ./api/Dockerfile \
-        "${DESTS[@]}" \
+        --context "$CI_PROJECT_DIR/api" \
+        --dockerfile "$CI_PROJECT_DIR/api/Dockerfile" \
+        $DESTS \
         --cache=true \
-        --verbosity=info
+        --verbosity=debug
   rules:
     - if: $CI_COMMIT_BRANCH
 
