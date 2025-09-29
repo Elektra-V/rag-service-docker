@@ -80,13 +80,18 @@ build_image:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(printf "%s:%s" "gitlab-ci-token" "$CI_JOB_TOKEN" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
   script:
-    - /kaniko/executor
-      --context ./api
-      --dockerfile ./api/Dockerfile
-      --destination "$IMAGE_NAME:$IMAGE_TAG"
-      --destination "$IMAGE_NAME:latest"
-      --cache=true
-      --verbosity=info
+    - |
+      set -euo pipefail
+      DESTS=( "--destination" "$IMAGE_NAME:$IMAGE_TAG" "--destination" "$IMAGE_NAME:$BRANCH_TAG" )
+      if [ "${CI_COMMIT_BRANCH:-}" = "main" ]; then
+        DESTS+=( "--destination" "$IMAGE_NAME:latest" )
+      fi
+      /kaniko/executor \
+        --context ./api \
+        --dockerfile ./api/Dockerfile \
+        "${DESTS[@]}" \
+        --cache=true \
+        --verbosity=info
   rules:
     - if: $CI_COMMIT_BRANCH
 
